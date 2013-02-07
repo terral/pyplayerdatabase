@@ -1,0 +1,47 @@
+/*
+	All dates are stored as integers, seconds since epoch, GMT time zone
+*/
+CREATE TABLE metadata ( -- data about the database
+	metaid integer primary key autoincrement,
+	attribute text,
+	value blob
+);
+INSERT INTO metadata (attribute, value) VALUES ('backup', 0); -- adds a backup date to the database
+CREATE TABLE user (
+	userid integer primary key autoincrement,
+	username text collate nocase,
+	pwhash text,
+	pwreps int, -- repetitions used when hashing this user's password
+	certified int default 0, -- determines if a user can upload, etc
+	referredby int, -- references the userid of the user who certified this user
+	created int, -- time account was created
+	lastactive int -- last time account was signed in
+);
+CREATE INDEX username_index ON user(username, pwhash);
+CREATE TABLE userdata ( -- extra data about users
+	userid int,
+	attribute text,
+	data blob
+);
+CREATE INDEX userdata_index ON userdata(attribute);
+CREATE TABLE usersession ( -- cookie session data
+	userid int,
+	token text, -- sha256 hash of cookie token
+	created int, -- time session started
+	expires int, -- time session expires
+	logouttoken text -- token used to verify logout requests
+);
+CREATE INDEX token_index ON usersession(token);
+CREATE TABLE message ( -- messages, ratings, etc
+	messageid integer primary key autoincrement,
+	userid int,
+	timestamp int,
+	type int,
+	comment text,
+	subjectid int default -1
+);
+CREATE TABLE messagedata ( -- extra data about messages
+	messageid int,
+	attribute text,
+	data blob
+);

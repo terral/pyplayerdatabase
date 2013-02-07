@@ -1,0 +1,22 @@
+<input type="text" id="gameid" placeholder="gameid" />
+<input type="text" id="cssclass" placeholder="css class" /><br />
+<input type="text" id="name" placeholder="name" />
+<input type="text" id="offset" placeholder="offset" />
+<input type="button" id="create" value="Submit" />
+<ul id="names"></ul>
+<script type="text/javascript">
+(function () {
+	var gameid = document.getElementById('gameid'),
+		cssclass = document.getElementById('cssclass'),
+		name = document.getElementById('name'),
+		offset = document.getElementById('offset'),
+		create = document.getElementById('create'),
+		gamecss = Site.getRoot() + '/gamecss/',
+		updateClass = function () {
+			
+		};
+	gameid.addEventListener('click', function () {
+		Site.getFile(gamecss + gameid.value, updateClass);
+	});
+}());
+</script>

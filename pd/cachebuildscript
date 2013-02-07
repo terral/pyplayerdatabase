@@ -1,0 +1,8 @@
+/*
+	All dates are stored as integers, seconds since epoch, GMT time zone
+*/
+CREATE TABLE auth (
+	userid int,
+	authkey text,
+	expires int
+);

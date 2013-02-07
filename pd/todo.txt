@@ -1,0 +1,24 @@
+Region Support
+Characters
+
+Player Screen
+	Rename
+	Set main
+	Add link
+	Bio
+	Set region
+	Split region (same name, different region)
+
+Tournament Screen
+	Rename
+	Change date
+	Set region
+	Edit entrants
+	Bio
+	Add link
+	Rate all
+
+	Per Event
+		Rename
+		Set game
+		Add link

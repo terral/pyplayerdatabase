@@ -1,0 +1,128 @@
+<style type="text/css">
+div.gamename { color: blue; cursor: pointer; display: block; }
+div.gamename:hover { font-weight: bold; text-decoration: underline; }
+</style>
+Rename from <input type="text" id="fromname" placeholder="from" /><span>&nbsp;</span> to <input type="text" id="toname" placeholder="to" /><span>&nbsp;</span><br />
+<input type="button" id="rename" value="Rename" /><br />
+<div id="debugoutput"></div>
+<input type="text" id="filter" placeholder="filter" />
+<div id="gamelist"></div>
+<script type="text/javascript">
+(function () {
+	'use strict';
+	var submitMerge = Site.getRoot() + '/mod/renamegame',
+		checkGame = Site.getRoot() + '/gameidfromname',
+		rename = document.getElementById('rename'),
+		fromname = document.getElementById('fromname'),
+		toname = document.getElementById('toname'),
+		debugoutput = document.getElementById('debugoutput'),
+		gamelist = document.getElementById('gamelist'),
+		filter = document.getElementById('filter'),
+		changetimer,
+		selected = 0,
+		change = new CustomEvent('change'),
+		enterInSelected = function (e) {
+			if (selected === 0) {
+				fromname.value = e.target.textContent;
+				fromname.dispatchEvent(change);
+				selected = 1;
+				toname.focus();
+			} else if (selected === 1) {
+				toname.value = e.target.textContent;
+				toname.dispatchEvent(change);
+				toname.focus();
+			}
+		},
+		autoChange = function (element) {
+			var launch = function () {
+				if (element.value !== '') {
+					element.dispatchEvent(change);
+				}
+			};
+			return function () {
+				clearTimeout(changetimer);
+				changetimer = setTimeout(launch, 404);
+			};
+		};
+
+	fromname.focus();
+	fromname.addEventListener('focus', function () {
+		selected = 0;
+	}, false);
+	toname.addEventListener('focus', function () {
+		selected = 1;
+	}, false);
+	fromname.addEventListener('keyup', autoChange(fromname), false);
+	toname.addEventListener('keyup', autoChange(toname), false);
+	fromname.addEventListener('change', function (e) {
+		clearTimeout(changetimer);
+		Site.getFile(checkGame + '?name=' + encodeURIComponent(fromname.value), function () {
+			fromname.nextSibling.firstChild.textContent = this.responseText;
+		});
+	}, false);
+	toname.addEventListener('change', function () {
+		clearTimeout(changetimer);
+		Site.getFile(checkGame + '?name=' + encodeURIComponent(toname.value), function () {
+			toname.nextSibling.firstChild.textContent = this.responseText;
+			if (this.responseText !== '') {
+				if (rename.value !== 'Merge') {
+					rename.value = 'Merge';
+				}
+			} else if (rename.value !== 'Rename') {
+				rename.value = 'Rename';
+			}
+		});
+	}, false);
+	rename.addEventListener('click', function () {
+		var from = fromname.value,
+			to = toname.value; {
+			if (from !== to) {
+				Site.getFile(submitMerge + '?from=' + from + '&to=' + to, function () {
+					var lines = this.responseText.split('\n'), i;
+					for (i = 0; i < lines.length; i++) {
+						debugoutput.appendChild(document.createTextNode(lines[i]));
+						debugoutput.appendChild(document.createElement('br'));
+					}
+				});
+			} else {
+				debugoutput.appendChild(document.createTextNode('Cannot merge ' + from + ' to ' + to));
+				debugoutput.appendChild(document.createElement('br'));
+			}
+		}
+		fromname.value = '';
+		toname.value = '';
+		fromname.focus();
+		selected = 0;
+	}, false);
+	Site.getFile(Site.getRoot() + '/listgames', function () {
+		var response = JSON.parse(this.responseText),
+			i,
+			container = document.createElement('div'),
+			div;
+		for (i = 0; i < response.length; i++) {
+			div = document.createElement('div');
+			div.className = 'gamename';
+			div.addEventListener('click', enterInSelected, false);
+			div.appendChild(document.createTextNode(response[i]));
+			container.appendChild(div);
+		}
+		gamelist.parentNode.replaceChild(container, gamelist);
+		gamelist = container;
+	});
+	filter.addEventListener('keyup', function () {
+		var games = gamelist.childNodes,
+			i;
+		for (i = 0; i < games.length; i++) {
+			if (games[i].firstChild.textContent.toLowerCase().indexOf(filter.value.toLowerCase()) === -1) {
+				games[i].style.fontSize = '8pt';
+				games[i].style.color = 'gray';
+				games[i].style.fontStyle = 'italic';
+			} else {
+				games[i].style.fontSize = '12pt';
+				games[i].style.color = 'blue';
+				games[i].style.fontStyle = 'inherit';
+			}
+		}
+	}, false);
+}());
+</script>

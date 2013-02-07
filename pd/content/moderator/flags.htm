@@ -1,0 +1,85 @@
+<style type="text/css">
+	#container ul li span { cursor: pointer; }
+</style>
+<div id="container"></div>
+<script type="text/javascript">
+	(function () {
+		var container = document.getElementById('container'),
+			summaryLocation = Site.getRoot() + '/mod/flagsummary',
+			flagLocation = Site.getRoot() + '/mod/flags/';
+		Site.getFile(summaryLocation, function () {
+			var response = JSON.parse(this.responseText),
+				ul = document.createElement('ul'),
+				li,
+				i,
+				l = response.length,
+				refreshFlags = function (e) {
+					var target = e.target;
+					target.style.cursor = 'wait';
+					Site.getFile(flagLocation + target.dataset.flagtype, function () {
+						var sublist, i, oldflags, container, flags, li, span, a, flag;
+						console.log(this.responseText);
+						if (!target.dataset.loaded) {
+							target.dataset.loaded = true;
+							sublist = document.createElement('ul');
+							target.parentNode.appendChild(sublist)
+						} else {
+							sublist = target.parentNode.getElementsByTagName('ul')[0];
+						}
+						oldflags = sublist.getElementsByTagName('li');
+						i = oldflags.length;
+						while (i--) {
+							sublist.removeChild(oldflags[i]);
+						}
+						if (this.responseText[0] === '{') {
+							container = JSON.parse(this.responseText);
+							flags = container.flags;
+							for (i = 0; i < flags.length; i++) {
+								flag = flags[i];
+								li = document.createElement('li');
+								a = document.createElement('a');
+								a.href = Site.getRoot() + '/user/' + flag.userid;
+								a.appendChild(document.createTextNode(flag.username));
+								li.appendChild(a);
+
+								if (flag.subject !== null) {
+									li.appendChild(document.createTextNode(' on '));
+									a = document.createElement('a');
+									a.appendChild(document.createTextNode(flag.subject));
+									a.href = flag.link;
+									li.appendChild(a);
+									if (flag.subsubject !== null) {
+										li.appendChild(document.createTextNode(', '));
+										a = document.createElement('a');
+										a.appendChild(document.createTextNode(flag.subsubject));
+										a.href = flag.sublink;
+										li.appendChild(a);
+									}
+								}
+								
+								li.appendChild(document.createTextNode(': '));
+								li.appendChild(Site.parseLinks(flag.comment));
+								sublist.appendChild(li);
+							}
+						} else {
+							li = document.createElement('li');
+							li.appendChild(Site.parseLinks(this.responseText));
+							sublist.appendChild(li);
+						}
+						target.style.cursor = 'pointer';
+					});
+				};
+			for (i = 0; i < l; i++) {
+				li = document.createElement('li');
+				span = document.createElement('span');
+				span.appendChild(document.createTextNode(response[i].name + ' (' + response[i].count + ')'));
+				Site.makeDataset(span);
+				span.dataset.flagtype = response[i].type;
+				span.addEventListener('click', refreshFlags, false);
+				li.appendChild(span);
+				ul.appendChild(li);
+			}
+			container.appendChild(ul);
+		});
+	}());
+</script>

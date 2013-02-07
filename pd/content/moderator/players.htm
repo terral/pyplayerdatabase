@@ -1,0 +1,261 @@
+<noscript><div>Sorry, this page requires JavaScript enabled.</div></noscript>
+Merge or rename <input class="autocomplete" data-script="/modgamefetch" type="text" id="fromname" placeholder="from" /> to <input class="autocomplete" data-script="/psauto" data-params="&gameid=-1" type="text" id="toname" placeholder="to" /> <input type="button" id="rename" disabled="disabled" value="Rename" /><br />
+Game: <input type="text" id="game" /><br />
+<select id="games" multiple="multiple" size="1">
+</select><br />
+Merge IDs: <input type="text" id="fromid" placeholder="from" data-msg="true" /><span>&nbsp;</span> to <input type="text" id="toid" placeholder="to" /><span>&nbsp;</span><br />
+<input type="button" value="Merge" id="merge" disabled="disabled" />
+<div id="debugoutput"></div>
+<script type="text/javascript">
+(function () {
+	'use strict';
+	var fromname = document.getElementById('fromname'),
+		toname = document.getElementById('toname'),
+		fromid = document.getElementById('fromid'),
+		toid = document.getElementById('toid'),
+		selectgame = document.getElementById('games'),
+		gamename = document.getElementById('game'),
+		rename = document.getElementById('rename'),
+		merge = document.getElementById('merge'),
+		debugoutput = document.getElementById('debugoutput'),
+		fetchId = Site.getRoot() + '/idfromplayer',
+		fetchPlayer = Site.getRoot() + '/playerfromid',
+		submitRename = Site.getRoot() + '/mod/renameplayer',
+		submitMerge = Site.getRoot() + '/mod/mergeplayers',
+		renameFromId = -1,
+		mergeToId = -1,
+		fromidok = false,
+		toidok = false,
+		games = [],
+		gamenames = [],
+		gameids = [],
+		loadedFromSearch = false,
+		renameChosen = function () {
+			if (renameFromId !== -1) {
+				debugoutput.appendChild(document.createTextNode('Submitting rename request.'));
+				debugoutput.appendChild(document.createElement('br'));
+				Site.getFile(submitRename + '?playerid=' + renameFromId + '&name=' + encodeURIComponent(toname.value), (function () {
+					var successText = 'Renamed ' + fromname.value + ' (' + renameFromId + ') to ' + toname.value;
+					return function () {
+						if (this.responseText === '1') {
+							debugoutput.appendChild(document.createTextNode(successText));
+						} else {
+							debugoutput.appendChild(document.createTextNode(this.responseText));
+						}
+						debugoutput.appendChild(document.createElement('br'));
+					}
+				}()));
+			} else {
+				debugoutput.appendChild(document.createTextNode('Cannot rename ' + renameFromId + ' to ' + toname.value));
+				debugoutput.appendChild(document.createElement('br'));
+			}
+		},
+		mergeChosen = function () {
+			debugoutput.appendChild(document.createTextNode('Submitting merge request.'));
+			debugoutput.appendChild(document.createElement('br'));
+			if (renameFromId !== -1 && renameFromId !== mergeToId) {
+				Site.getFile(submitMerge + '?from=' + renameFromId + '&to=' + mergeToId, (function () {
+					var successText = 'Merged ' + fromname.value + ' (' + renameFromId + ') to ' + toname.value + ' (' + mergeToId + ')';
+					return function () {
+						if (this.responseText === '1') {
+							debugoutput.appendChild(document.createTextNode(successText));
+						} else {
+							debugoutput.appendChild(document.createTextNode(this.responseText));
+						}
+						debugoutput.appendChild(document.createElement('br'));
+					}
+				}()));
+			} else {
+				debugoutput.appendChild(document.createTextNode('Cannot merge ' + renameFromId + ' to ' + mergeToId));
+				debugoutput.appendChild(document.createElement('br'));
+			}
+		},
+		action = function () {};
+	Site.makeDataset(toname);
+	rename.addEventListener('click', function () { action(); }, false);
+	merge.addEventListener('click', function () {
+		var from = parseInt(fromid.value, 10),
+			to = parseInt(toid.value, 10); {
+			if (from !== to && !isNaN(from) && !isNaN(to)) {
+				Site.getFile(submitMerge + '?from=' + from + '&to=' + to, (function () {
+					var successText = 'Merged ' + fromid.nextSibling.firstChild.textContent + ' (' + from + ') to ' + toid.nextSibling.firstChild.textContent + ' (' + to + ')';
+					return function () {
+						if (this.responseText === '1') {
+							debugoutput.appendChild(document.createTextNode(successText));
+						} else {
+							debugoutput.appendChild(document.createTextNode(this.responseText));
+						}
+						debugoutput.appendChild(document.createElement('br'));
+					}
+				}()));
+			} else {
+				debugoutput.appendChild(document.createTextNode('Cannot merge ' + from + ' to ' + to));
+				debugoutput.appendChild(document.createElement('br'));
+			}
+		}
+	}, false);
+	gamename.addEventListener('keyup', function () {
+		var i;
+		if (gamename.value.length > 0) {
+			for (i = 0; i < gamenames.length; i++) {
+				if (gamenames[i].toLowerCase().indexOf(gamename.value.toLowerCase()) !== -1) {
+					selectgame.selectedIndex = i;
+				}
+			}
+			if (selectgame.selectedIndex !== -1) {
+				fromid.value = selectgame.options[selectgame.selectedIndex].value;
+				toname.dataset.params = '&gameid=' + gameids[selectgame.selectedIndex];
+			} else {
+				fromid.value = '';
+				toname.dataset.params = '';
+			}
+			fromid.dispatchEvent(new Event('change'));
+		}
+	}, false);
+	selectgame.addEventListener('change', function () {
+		if (selectgame.selectedIndex !== -1) {
+			fromid.value = selectgame.options[selectgame.selectedIndex].value;
+			renameFromId = selectgame.options[selectgame.selectedIndex].value;
+			toname.dataset.params = '&gameid=' + gameids[selectgame.selectedIndex];
+			rename.disabled = true;
+			fromid.dispatchEvent(new Event('change'));
+			if (toname.value.length !== 0) {
+				Site.getFile(fetchId + '?name=' + encodeURIComponent(toname.value) + '&gameid=' + gameids[selectgame.selectedIndex], function () {
+					toid.value = this.responseText;
+					toid.dispatchEvent(new Event('change'));
+					if (this.responseText === '' || fromid.value.toLowerCase() === toid.value.toLowerCase()) {
+						rename.disabled = false;
+						action = renameChosen;
+						rename.value = 'Rename';
+					} else {
+						rename.disabled = false;
+						action = mergeChosen;
+						rename.value = 'Merge';
+					}
+				});
+			}
+		}
+	}, false);
+	fromname.addEventListener('keyup', function () {
+		if (fromname.value.length > 0) {
+			rename.disabled = false;
+		} else {
+			rename.disabled = true;
+		}
+		if (selectgame.style.display === 'none') {
+			selectgame.style.display = 'block';
+		}
+	}, false);
+	fromname.addEventListener('autocomplete', function (e) {
+		var names, rgameids, playerids, i, game;
+		while (selectgame.firstChild) {
+			selectgame.removeChild(selectgame.firstChild);
+		}
+		if (e.response.games && e.response.gameids && e.response.playerids) {
+			names = e.response.games.split(', ');
+			rgameids = e.response.gameids.split(', ');
+			playerids = e.response.playerids.split(', ');
+			//console.log(e.response);
+			if (names.length == playerids.length) {
+				games.length = 0;
+				gameids.length = 0;
+				gamenames.length = 0;
+				for (i = 0; i < names.length; i++) {
+					if (games.indexOf(playerids[i]) === -1) {
+						games.push(playerids[i]);
+						gamenames.push(decodeURIComponent(names[i]));
+						gameids.push(rgameids[i]);
+						game = document.createElement('option');
+						game.value = playerids[i];
+						game.appendChild(document.createTextNode(decodeURIComponent(names[i])));
+						selectgame.add(game);
+						if (gamename.value.length > 0 && names[i].toLowerCase().indexOf(gamename.value.toLowerCase()) !== -1) {
+							selectgame.selectedIndex = i;
+						}
+					}
+				}
+				if (games.length === 1) {
+					selectgame.selectedIndex = 0;
+				}
+				if (selectgame.selectedIndex !== -1) {
+					fromid.value = selectgame.options[selectgame.selectedIndex].value;
+					renameFromId = selectgame.options[selectgame.selectedIndex].value;
+					toname.dataset.params = '&gameid=' + gameids[selectgame.selectedIndex];
+				} else {
+					fromid.value = '';
+					renameFromId = -1;
+					toname.dataset.params = '&gameid=-1';
+				}
+				fromid.dispatchEvent(new Event('change'));
+			}
+		}
+		selectgame.size = games.length;
+		//if (e.response.status) {
+			//console.log(e.response);
+			//console.log(e.response.games, e.response.gameids, e.response.playerids);
+			//fromid.value = e.response.playerid;
+		//}
+	}, false);
+	/*toname.addEventListener('change', function () {
+		rename.disabled = true;
+		if (selectgame.selectedIndex !== -1) {
+			Site.getFile(fetchId + '?name=' + toname.value + '&gameid=' + gameids[selectgame.selectedIndex], function () {
+				toid.value = this.responseText;
+			});
+		}
+	}, false);*/
+	toname.addEventListener('autocomplete', function (e) {
+		if (renameFromId !== -1) {
+			rename.disabled = false;
+			if (e.response.status && fromid.value.toLowerCase() !== toid.value.toLowerCase()) {
+				toid.value = e.response.playerid;
+				mergeToId = e.response.playerid;
+				action = mergeChosen;
+				rename.value = 'Merge';
+			} else {
+				toid.value = '';
+				mergeToId = -1;
+				action = renameChosen;
+				rename.value = 'Rename';
+			}
+			toid.dispatchEvent(new Event('change'));
+		}
+	}, false);
+	fromid.addEventListener('change', function (e) {
+		fromid.nextSibling.firstChild.textContent = '';
+		Site.getFile(fetchPlayer + '?id=' + encodeURIComponent(fromid.value), function () {
+			fromid.nextSibling.firstChild.textContent = this.responseText;
+			fromidok = this.responseText !== '';
+			merge.disabled = !(fromidok && toidok);
+		});
+	}, false);
+	toid.addEventListener('change', function (e) {
+		toid.nextSibling.firstChild.textContent = '';
+		Site.getFile(fetchPlayer + '?id=' + encodeURIComponent(toid.value), function () {
+			toid.nextSibling.firstChild.textContent = this.responseText;
+			toidok = this.responseText !== '';
+			merge.disabled = !(fromidok && toidok);
+		});
+	}, false);
+	if (!isNaN(parseInt(location.search.substr(1)))) {
+		fromname.disabled = true;
+		toname.focus();
+		Site.getFile(Site.getRoot() + '/playerdatafromid?id=' + location.search.substr(1), function () {
+			var response = JSON.parse(this.responseText);
+			loadedFromSearch = true;
+			fromname.value = response.nickname;
+			game.value = response.name;
+			fromidok = true;
+			fromid.value = response.playerid;
+			renameFromId = response.playerid;
+			toname.dataset.params = '&gameid=' + response.gameid;
+			fromid.dispatchEvent(new Event('change'));
+			selectgame.style.display = 'none';
+			fromname.disabled = false;
+			rename.disabled = false;
+		});
+	} else {
+		fromname.focus();
+	}
+}());
+</script>
